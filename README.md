@@ -1,68 +1,92 @@
-Product : Edge Device Platform
+# Edge Device Platform (EDP) — Phase 1
 
-The platform you could build
+Goal: Claim Code -> Device Identity -> MQTT TLS authentication -> Heartbeat -> ONLINE
+
+This is a local MVP. AWS is not required.
+
+target is:
+
+Claim Code → Device Identity → MQTT mTLS → Heartbeat → ONLINE
+
+## Phase 1 Architecture — Local Machine
+
+Below is the Phase 1 architecture for local development (monospace diagram):
 
 ```text
-               Customer Device
-                     │
-              MQTT / HTTPS
-                     │
-              AWS IoT Core
-                     │
-          Your Spring Boot Platform
-──────────────────────────────────────────────
-✓ Device Onboarding
-✓ Fleet Inventory
-✓ OTA Campaign Management
-✓ Device Groups
-✓ Remote Commands
-✓ Configuration Management
-✓ Monitoring & Alerts
-✓ Audit Logs
-✓ User & Role Management
-✓ REST APIs
-──────────────────────────────────────────────
+                        LOCAL MACHINE
+  ┌──────────────────────────────────────────────────────────────┐
+  │                         EDP Backend (FastAPI)               │
+  │  ┌──────────────────────┬──────────────────────┬───────────┐│
+  │  │ Device Registry      │ Claim Service        │ Cert svc  ││
+  │  └──────────────────────┴──────────────────────┴───────────┘│
+  │                              │                                │
+  │                          Certificate Service                  │
+  │                              │                                │
+  │                          Mosquitto (MQTT/TLS)                 │
+  └──────────────────────────────┼─────────────────────────────────┘
+                                 │
+                               MQTT
+                                 │
+                    ┌────────────▼───────────┐
+                    │      Edge Agent        │
+                    │     (Linux device)     │
+                    └────────────────────────┘
 ```
 
-I would build it in three phases
+You can run the backend, database and MQTT broker locally with Docker Compose.
 
-Phase 1 – Onboarding
 
-This solves the first customer problem.
+## Stack
+- FastAPI
+- PostgreSQL (local MVP registry)
+- Mosquitto MQTT
+- Python Edge Agent
+- OpenSSL development CA
+- Docker Compose
 
-Features:
+## Run
 
-- Register a device
-- Assign certificates/tokens
-- Group devices
-- Activate/deactivate devices
-- Store metadata
-- Device inventory
+Prerequisites: Docker Compose, Python 3.11+, OpenSSL, curl.
 
-Phase 2 – OTA
+1. Generate development certificates:
+```bash
+./scripts/generate-certs.sh
+```
 
-This is where your previous experience becomes a competitive advantage.
+Note: the script places broker/server certificates under `certs/server/` and device certificates under `certs/devices/`. The compose configuration expects the broker/server certificate and key at `certs/server/server.crt` and `certs/server/server.key`.
 
-Features:
+2. Start services:
+```bash
+docker compose up -d --build
+```
 
-- Upload firmware or container images
-- Create OTA campaigns
-- Roll out to 5%, 20%, then 100% of devices
-- Schedule updates
-- Track progress
-- Roll back failed updates
+3. Create the agent environment:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r agent/requirements.txt
+```
 
-Phase 3 – Monitoring
+4. Start the agent:
+```bash
+python -m agent.edp_agent.main
+```
 
-Once devices are deployed, customers need visibility.
+5. The agent prints a claim code. In another terminal, use the printed curl command.
 
-Features:
+6. Check devices:
+```bash
+curl http://localhost:8000/api/v1/devices
+```
 
-- Online/offline status
-- Heartbeats
-- CPU and memory
-- Disk usage
-- Application version
-- Last OTA status
-- Alerts
-- Dashboards
+## Important
+The certificate flow in this first repository is intentionally a development scaffold. The next production step is to implement real certificate issuance and bind MQTT certificate identities to device identities. Do not use the generated private keys or this CA process in production.
+
+## Phase 1 Definition of Done
+- Unique device identity
+- Claim code
+- Device claim
+- MQTT TLS/mTLS
+- Heartbeat
+- ONLINE status
+- last_seen

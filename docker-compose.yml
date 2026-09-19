@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: edp
+      POSTGRES_USER: edp
+      POSTGRES_PASSWORD: edp
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edp -d edp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+      - "8883:8883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./certs:/mosquitto/certs:ro
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      EDP_DATABASE_URL: postgresql://edp:edp@postgres:5432/edp
+      EDP_CA_CERT: /app/certs/ca/ca.crt
+      EDP_CA_KEY: /app/certs/ca/ca.key
+      EDP_MQTT_HOST: mosquitto
+      EDP_MQTT_PORT: "8883"
+      EDP_MQTT_CA: /app/certs/mqtt/ca.crt
+      EDP_MQTT_CERT: /app/certs/mqtt/server/server.crt
+      EDP_MQTT_KEY: /app/certs/mqtt/server/server.key
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./certs/ca:/app/certs/ca:ro
+      - ./certs:/app/certs/mqtt:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+  mqtt-consumer:
+    build:
+      context: ./backend
+    command: python -m app.mqtt_consumer
+    environment:
+      EDP_DATABASE_URL: postgresql://edp:edp@postgres:5432/edp
+      EDP_MQTT_HOST: mosquitto
+      EDP_MQTT_PORT: "8883"
+      EDP_MQTT_CA: /app/certs/mqtt/ca.crt
+      EDP_MQTT_CERT: /app/certs/mqtt/backend.crt
+      EDP_MQTT_KEY: /app/certs/mqtt/backend.key
+    volumes:
+      - ./certs/ca/ca.crt:/app/certs/mqtt/ca.crt:ro
+      - ./certs/server/server.crt:/app/certs/mqtt/server/server.crt:ro
+      - ./certs/server/server.key:/app/certs/mqtt/server/server.key:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+volumes:
+  postgres_data:

@@ -1,0 +1,290 @@
+EDP/EaaS, there are several ways to onboard a device. I would separate them into how the device gets its identity/credentials and how the device connects to your platform.
+
+1. Manufacturing / Pre-Provisioned Onboarding
+
+Device is provisioned before it reaches the customer.
+
+Manufacturing
+    ↓
+Generate Device Identity
+    ↓
+Install Certificate + Private Key
+    ↓
+Ship Device
+    ↓
+Device boots
+    ↓
+Connects to EDP
+    ↓
+ONLINE
+
+Example:
+
+device-001
+certificate: device-001.crt
+private-key: device-001.key
+
+Good for: production IoT devices, large fleets.
+
+Pros
+
+Strong security
+Fully automatic
+No manual onboarding
+
+Cons
+
+Requires manufacturing/provisioning infrastructure
+Certificate/key handling becomes important
+2. Claim Code / Registration Code
+
+This is probably the best approach for your EDP MVP.
+
+Device starts with a temporary identity:
+
+Edge Device
+    ↓
+Generate claim code
+    ↓
+"EDP-8F4K92"
+
+User enters the code in your EDP console:
+
+EDP Console
+    ↓
+Add Device
+    ↓
+Enter Claim Code
+    ↓
+Approve
+
+Then the device receives its permanent identity/credentials.
+
+Temporary Identity
+       ↓
+Claim
+       ↓
+Permanent Device Identity
+       ↓
+Secure Connection
+
+This is similar to how many device-management systems solve the "how do I associate this physical device with my account?" problem.
+
+3. QR Code Onboarding
+
+Very useful for physical devices.
+
+Device
+ ┌──────────────┐
+ │              │
+ │   QR CODE    │
+ │              │
+ └──────────────┘
+
+The QR code could contain:
+
+device_id
+claim_token
+manufacturing_info
+
+User scans:
+
+Phone/Web
+   ↓
+Scan QR
+   ↓
+EDP
+   ↓
+Approve Device
+
+Good for: Raspberry Pi, gateways, industrial devices, field installations.
+
+4. Manual Device Registration
+
+Admin creates the device manually.
+
+EDP Console
+
+Device ID:     NUC-001
+Device Type:   Edge Gateway
+Hardware:      Intel NUC
+Location:      Tractor-001
+
+Then the device gets credentials.
+
+Good for: development/testing.
+
+Not ideal for: thousands of devices.
+
+5. Bootstrap Certificate → Permanent Certificate
+
+This is a more production-grade approach.
+
+Device
+  │
+  │ Bootstrap Certificate
+  ▼
+EDP
+  │
+  │ Verify
+  ▼
+Device Identity Service
+  │
+  │ Issue permanent certificate
+  ▼
+Device
+  │
+  │ Permanent certificate
+  ▼
+EDP
+
+This gives you a strong zero-touch provisioning architecture.
+
+For your EDP, I'd build these in this order
+MVP — Start here
+
+Claim Code onboarding
+
+              EDP
+               │
+         Device Registry
+               │
+               │
+          Claim Code
+               │
+               ▼
+          Edge Agent
+               │
+          Linux Device
+
+Your demo becomes:
+
+Install Edge Agent → generate claim code → enter code in EDP → device securely registers → device appears ONLINE.
+
+Phase 2
+
+Add:
+
+QR Code
+
+QR → Claim → Provision → ONLINE
+Phase 3
+
+Add:
+
+Certificate-based zero-touch provisioning
+
+Factory → Device Identity → EDP → Automatic Onboarding
+Phase 4
+
+Add support for different device classes:
+
+                  EDP
+                   │
+       ┌───────────┼───────────┐
+       │           │           │
+     ESP32        Linux       Jetson
+     MCU          Edge        ARM64
+       │           │           │
+   Firmware      Agent       Agent
+One important architectural decision
+
+Don't make onboarding = MQTT connection.
+
+Instead, model onboarding as a lifecycle:
+
+UNKNOWN
+   ↓
+CLAIMED
+   ↓
+PROVISIONING
+   ↓
+PROVISIONED
+   ↓
+CONNECTED
+   ↓
+ONLINE
+
+That gives you a clean foundation for everything you'll add later:
+
+Onboarding
+    ↓
+Identity
+    ↓
+OTA
+    ↓
+Monitoring
+    ↓
+Configuration
+    ↓
+Remote Operations
+
+
+
+
+Not exactly. They solve a similar onboarding problem, but they are different mechanisms.
+
+The easiest distinction is:
+
+Claim code = proves that a user is allowed to claim the device.
+Bootstrap certificate = proves that the device itself is allowed to join the platform.
+
+Compare them
+	Claim Code	Bootstrap Certificate
+Main purpose	Device ownership/claiming	Device authentication
+Usually entered by	User/admin	Device automatically
+Secret type	One-time token/code	Cryptographic certificate + private key
+Device initially has	Temporary identity/token	Bootstrap certificate + private key
+Human interaction	Usually yes	Usually no
+Security	Good if implemented correctly	Stronger
+Automation	Semi-automatic	Zero-touch possible
+Best for	MVP / field onboarding	Production manufacturing
+Claim Code
+
+Imagine your Jetson arrives at a customer site.
+
+Jetson
+   │
+   │ generates/has claim code
+   ▼
+EDP: "Add Device"
+   │
+   │ User enters:
+   │ CLAIM-7F92K
+   ▼
+EDP verifies claim
+   │
+   ▼
+Device gets permanent credentials
+   │
+   ▼
+ONLINE
+
+The claim code connects the physical device to the customer's EDP account.
+
+Bootstrap Certificate
+
+Here the device already has a cryptographic identity.
+
+Jetson
+ │
+ │ Bootstrap certificate
+ │ + private key
+ ▼
+EDP
+ │
+ │ Authenticate
+ ▼
+Provisioning Service
+ │
+ │ Issue permanent certificate
+ ▼
+Jetson
+ │
+ │ Permanent certificate
+ ▼
+EDP
+
+There may be zero human interaction.
+
+This is much more suitable when you manufacture/provision thousands of devices.

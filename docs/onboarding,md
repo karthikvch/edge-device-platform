@@ -1,0 +1,98 @@
+# Device Onboarding Strategy
+
+## MVP Priority Phases
+
+```text
+Phase 1
+Secure Device Onboarding
+        ↓
+Phase 2
+Device Identity + Registry
+        ↓
+Phase 3
+OTA Updates
+        ↓
+Phase 4
+Monitoring / Observability
+        ↓
+Phase 5
+Configuration
+        ↓
+Phase 6
+Remote Operations
+        ↓
+Phase 7
+Fleet Management
+```
+
+## Why Onboarding First?
+
+Everything else depends on knowing:
+
+- What is this device?
+- Who owns it?
+- Is it trusted?
+- How does it securely connect to my platform?
+
+For example:
+
+```text
+New Edge Device
+      │
+      ▼
+  Provisioning
+      │
+      ▼
+ Device Identity
+      │
+      ▼
+ Secure Authentication
+      │
+      ▼
+ Register Device
+      │
+      ▼
+ Platform
+      │
+      ├── OTA
+      ├── Monitoring
+      ├── Configuration
+      └── Remote Operations
+```
+## First Implementation Approach
+
+Target Linux edge devices first, as they match your existing experience:
+
+- Intel NUC / x86_64
+- Raspberry Pi / ARM64
+- Jetson / ARM64
+
+Build an Edge Agent that runs on the device:
+
+```text
+                EDP Cloud
+                   │
+                MQTT/HTTPS
+                   │
+                   ▼
+             Edge Agent
+                   │
+       ┌───────────┼───────────┐
+       │           │           │
+    Identity    Metadata    Heartbeat
+       │           │           │
+       └───────────┼───────────┘
+                   │
+             Device Registry
+```
+
+## First Demo Success Criteria
+
+Your first successful demo should be:
+
+1. Take a fresh Linux device
+2. Install Edge Agent
+3. Securely provision it
+4. Device appears in EDP console as **ONLINE**
+
+That's a very good Phase 1 milestone.
