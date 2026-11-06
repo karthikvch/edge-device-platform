@@ -71,7 +71,7 @@ def main():
     print(
         f'curl -X POST {EDP_URL}/api/v1/devices/claim '
         '-H "Content-Type: application/json" '
-        f'-d '{{"claim_code":"{claim_code}"}}''
+        f'-d \'{{"claim_code":"{claim_code}"}}\''
     )
     print()
     input("Press ENTER after claiming the device...")
